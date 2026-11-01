@@ -1,0 +1,6 @@
+{
+  "appId": "com.deltahub.raftfishing",
+  "appName": "Raft Fishing Survival",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
