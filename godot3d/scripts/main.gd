@@ -28,8 +28,8 @@ void vertex() {
 void fragment() {
     float bands = floor((wave_value + 1.0) * 3.0) / 6.0;
     vec3 water = mix(deep_water.rgb, light_water.rgb, clamp(0.24 + bands, 0.0, 0.92));
-    float sun_glint = pow(max(dot(normalize(NORMAL), normalize(LIGHT)), 0.0), 18.0);
-    ALBEDO = water + vec3(0.10, 0.20, 0.22) * sun_glint * 0.22;
+    float edge_glint = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), 5.0);
+    ALBEDO = water + vec3(0.10, 0.20, 0.22) * edge_glint * 0.16;
     ROUGHNESS = 0.48;
     METALLIC = 0.02;
 }
