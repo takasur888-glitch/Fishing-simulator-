@@ -11,24 +11,27 @@ var target_speed := 0.0
 
 const WATER_SHADER := """
 shader_type spatial;
-render_mode cull_disabled;
-uniform vec4 deep_water : source_color = vec4(0.015, 0.20, 0.31, 1.0);
-uniform vec4 shallow_water : source_color = vec4(0.04, 0.48, 0.58, 1.0);
-uniform float wave_scale = 0.055;
+render_mode cull_disabled, diffuse_burley, specular_schlick_ggx;
+uniform vec4 deep_water : source_color = vec4(0.015, 0.19, 0.34, 1.0);
+uniform vec4 light_water : source_color = vec4(0.08, 0.48, 0.61, 1.0);
+uniform float wave_height = 0.22;
 varying float wave_value;
 void vertex() {
-    float a = sin(VERTEX.x * 0.12 + TIME * 1.15);
-    float b = cos(VERTEX.z * 0.16 + TIME * 0.82);
-    float c = sin((VERTEX.x + VERTEX.z) * 0.07 + TIME * 0.55);
-    VERTEX.y += (a * 0.22 + b * 0.14 + c * 0.12);
-    wave_value = a * 0.5 + b * 0.3 + c * 0.2;
+    vec2 p = VERTEX.xz;
+    float a = sin(p.x * 0.11 + TIME * 0.75);
+    float b = cos(p.y * 0.13 + TIME * 0.58);
+    float c = sin((p.x + p.y) * 0.055 + TIME * 0.42);
+    float broad = sin(p.x * 0.025 - p.y * 0.018 + TIME * 0.25);
+    VERTEX.y += (a * 0.55 + b * 0.38 + c * 0.28 + broad * 0.22) * wave_height;
+    wave_value = a * 0.42 + b * 0.30 + c * 0.18 + broad * 0.10;
 }
 void fragment() {
-    float fresnel = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), 2.0);
-    vec3 water = mix(deep_water.rgb, shallow_water.rgb, clamp(wave_value * 0.5 + 0.48, 0.0, 1.0));
-    ALBEDO = mix(water, vec3(0.32, 0.72, 0.78), fresnel * 0.28);
-    ROUGHNESS = 0.22;
-    METALLIC = 0.12;
+    float bands = floor((wave_value + 1.0) * 3.0) / 6.0;
+    vec3 water = mix(deep_water.rgb, light_water.rgb, clamp(0.24 + bands, 0.0, 0.92));
+    float sun_glint = pow(max(dot(normalize(NORMAL), normalize(LIGHT)), 0.0), 18.0);
+    ALBEDO = water + vec3(0.10, 0.20, 0.22) * sun_glint * 0.22;
+    ROUGHNESS = 0.48;
+    METALLIC = 0.02;
 }
 """
 
@@ -36,7 +39,6 @@ func _ready() -> void:
     _create_world()
     _create_ocean()
     _create_raft()
-    _create_island()
     _create_camera()
     _create_sun()
     _create_hud()
@@ -79,18 +81,21 @@ func _create_world() -> void:
     add_child(world)
 
 func _create_ocean() -> void:
+    # Large, lightweight low-poly ocean. Islands are added separately by the creator.
     var water := MeshInstance3D.new()
     var plane := PlaneMesh.new()
-    plane.size = Vector2(500.0, 500.0)
-    plane.subdivide_width = 100
-    plane.subdivide_depth = 100
+    plane.size = Vector2(700.0, 700.0)
+    # Fewer large faces create a low-poly look and reduce mobile GPU work.
+    plane.subdivide_width = 42
+    plane.subdivide_depth = 42
     water.mesh = plane
     ocean_material = ShaderMaterial.new()
     var shader := Shader.new()
     shader.code = WATER_SHADER
     ocean_material.shader = shader
     water.material_override = ocean_material
-    water.position.y = -0.25
+    water.position.y = -0.35
+    water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
     add_child(water)
 
 func _create_raft() -> void:
