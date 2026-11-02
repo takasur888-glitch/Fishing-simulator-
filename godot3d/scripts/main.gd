@@ -87,17 +87,17 @@ func _create_ocean() -> void:
     var st := SurfaceTool.new()
     st.begin(Mesh.PRIMITIVE_TRIANGLES)
 
-    const CELLS := 84
-    const EXTENT := 700.0
-    const STEP := EXTENT / float(CELLS)
+    var cells := 84
+    var extent := 700.0
+    var step := extent / float(cells)
 
-    for z in range(CELLS):
+    for z in range(cells):
         for x in range(CELLS):
-            var x0 := -EXTENT * 0.5 + float(x) * STEP
-            var z0 := -EXTENT * 0.5 + float(z) * STEP
+            var x0 := -extent * 0.5 + float(x) * step
+            var z0 := -EXTENT * 0.5 + float(z) * step
             var p0 := Vector3(x0, _ocean_wave_height(x0, z0), z0)
-            var p1 := Vector3(x0, _ocean_wave_height(x0, z0 + STEP), z0 + STEP)
-            var p2 := Vector3(x0 + STEP, _ocean_wave_height(x0 + STEP, z0 + STEP), z0 + STEP)
+            var p1 := Vector3(x0, _ocean_wave_height(x0, z0 + step), z0 + STEP)
+            var p2 := Vector3(x0 + step, _ocean_wave_height(x0 + STEP, z0 + STEP), z0 + STEP)
             var p3 := Vector3(x0 + STEP, _ocean_wave_height(x0 + STEP, z0), z0)
 
             _add_ocean_vertex(st, p0)
