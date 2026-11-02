@@ -81,22 +81,60 @@ func _create_world() -> void:
     add_child(world)
 
 func _create_ocean() -> void:
-    # Large, lightweight low-poly ocean. Islands are added separately by the creator.
+    # Build an actual faceted 3D wave mesh (not a flat plane).
+    # Geometry is generated once; vertex colours create deep-to-shallow variation.
     var water := MeshInstance3D.new()
-    var plane := PlaneMesh.new()
-    plane.size = Vector2(700.0, 700.0)
-    # Fewer large faces create a low-poly look and reduce mobile GPU work.
-    plane.subdivide_width = 42
-    plane.subdivide_depth = 42
-    water.mesh = plane
-    ocean_material = ShaderMaterial.new()
-    var shader := Shader.new()
-    shader.code = WATER_SHADER
-    ocean_material.shader = shader
-    water.material_override = ocean_material
-    water.position.y = -0.35
+    var st := SurfaceTool.new()
+    st.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+    const CELLS := 84
+    const EXTENT := 700.0
+    const STEP := EXTENT / float(CELLS)
+
+    for z in range(CELLS):
+        for x in range(CELLS):
+            var x0 := -EXTENT * 0.5 + float(x) * STEP
+            var z0 := -EXTENT * 0.5 + float(z) * STEP
+            var p0 := Vector3(x0, _ocean_wave_height(x0, z0), z0)
+            var p1 := Vector3(x0, _ocean_wave_height(x0, z0 + STEP), z0 + STEP)
+            var p2 := Vector3(x0 + STEP, _ocean_wave_height(x0 + STEP, z0 + STEP), z0 + STEP)
+            var p3 := Vector3(x0 + STEP, _ocean_wave_height(x0 + STEP, z0), z0)
+
+            _add_ocean_vertex(st, p0)
+            _add_ocean_vertex(st, p1)
+            _add_ocean_vertex(st, p3)
+            _add_ocean_vertex(st, p1)
+            _add_ocean_vertex(st, p2)
+            _add_ocean_vertex(st, p3)
+
+    st.generate_normals()
+    water.mesh = st.commit()
+    var ocean_mat := StandardMaterial3D.new()
+    ocean_mat.vertex_color_use_as_albedo = true
+    ocean_mat.roughness = 0.34
+    ocean_mat.metallic = 0.02
+    ocean_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+    water.material_override = ocean_mat
+    water.position.y = -0.45
     water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
     add_child(water)
+
+func _ocean_wave_height(x: float, z: float) -> float:
+    var long_wave := sin(x * 0.035 + z * 0.012) * 0.72
+    var cross_wave := cos(z * 0.047 - x * 0.018) * 0.48
+    var small_wave := sin((x + z) * 0.082) * 0.20
+    return long_wave + cross_wave + small_wave
+
+func _add_ocean_vertex(st: SurfaceTool, point: Vector3) -> void:
+    var crest := clamp((point.y + 1.25) / 2.7, 0.0, 1.0)
+    var deep := Color(0.015, 0.17, 0.34)
+    var shallow := Color(0.08, 0.52, 0.65)
+    var foam_tint := Color(0.48, 0.78, 0.82)
+    var water_color := deep.lerp(shallow, crest)
+    if point.y > 1.05:
+        water_color = water_color.lerp(foam_tint, 0.28)
+    st.set_color(water_color)
+    st.add_vertex(point)
 
 func _create_raft() -> void:
     raft = Node3D.new()
